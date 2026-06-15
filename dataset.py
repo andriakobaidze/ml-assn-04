@@ -17,13 +17,15 @@ EMOTION_LABELS = {
 
 
 class FERDataset(Dataset):
-    def __init__(self, df, transform=None):
-        self.emotions = df['emotion'].values
+    def __init__(self, df, transform=None, has_labels=True):
         self.pixels = df['pixels'].values
+        self.has_labels = has_labels
+        if has_labels:
+            self.emotions = df['emotion'].values
         self.transform = transform
 
     def __len__(self):
-        return len(self.emotions)
+        return len(self.pixels)
 
     def __getitem__(self, idx):
         pixel_values = np.array(self.pixels[idx].split(), dtype=np.float32)
@@ -34,8 +36,11 @@ class FERDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        label = torch.tensor(self.emotions[idx], dtype=torch.long)
-        return image, label
+        if self.has_labels:
+            label = torch.tensor(self.emotions[idx], dtype=torch.long)
+            return image, label
+        else:
+            return image
 
 
 def get_transforms(augment=True):
@@ -47,7 +52,6 @@ def get_transforms(augment=True):
         ])
     else:
         train_transform = None
-
     return train_transform
 
 
@@ -63,9 +67,9 @@ def get_dataloaders(train_csv_path, test_csv_path, val_split=0.2, batch_size=64,
 
     train_transform = get_transforms(augment=augment)
 
-    train_dataset = FERDataset(train_df_split, transform=train_transform)
-    val_dataset = FERDataset(val_df_split, transform=None)
-    test_dataset = FERDataset(test_df, transform=None)
+    train_dataset = FERDataset(train_df_split, transform=train_transform, has_labels=True)
+    val_dataset = FERDataset(val_df_split, transform=None, has_labels=True)
+    test_dataset = FERDataset(test_df, transform=None, has_labels=False)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
