@@ -1,4 +1,5 @@
 import torch.nn as nn
+from torchvision import models as tv_models
 
 
 class SimpleCNN(nn.Module):
@@ -123,3 +124,22 @@ class DeepCNN(nn.Module):
         x = self.gap(x)
         x = self.classifier(x)
         return x
+
+
+class ResNet18FER(nn.Module):
+    # pre-trained ResNet18, Fine-tuned, transfer learning, first conv layer accepts 1 channel, final fc layer outputs 7 classes.
+    def __init__(self, num_classes=7):
+        super(ResNet18FER, self).__init__()
+
+        self.model = tv_models.resnet18(weights='IMAGENET1K_V1')
+
+        self.model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+
+        in_features = self.model.fc.in_features
+        self.model.fc = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(in_features, num_classes)
+        )
+
+    def forward(self, x):
+        return self.model(x)
