@@ -287,16 +287,16 @@ class DeepCNNv2(nn.Module):
 
         self.features = nn.Sequential(
             ResidualBlock(1, 32),
-            nn.MaxPool2d(2, 2),       # (32, 24, 24)
+            nn.MaxPool2d(2, 2),
 
             ResidualBlock(32, 64),
-            nn.MaxPool2d(2, 2),       # (64, 12, 12)
+            nn.MaxPool2d(2, 2),
 
             ResidualBlock(64, 128),
-            nn.MaxPool2d(2, 2),       # (128, 6, 6)
+            nn.MaxPool2d(2, 2),
 
             ResidualBlock(128, 256),
-            nn.MaxPool2d(2, 2),       # (256, 3, 3)
+            nn.MaxPool2d(2, 2),
 
             ResidualBlock(256, 512),
         )
