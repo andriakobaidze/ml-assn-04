@@ -143,3 +143,53 @@ class ResNet18FER(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+class CNNLSTM(nn.Module):
+    # CNN + LSTM
+    def __init__(self, num_classes=7, hidden_size=256, num_layers=2):
+        super(CNNLSTM, self).__init__()
+
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+        )
+
+        self.lstm = nn.LSTM(
+            input_size=128 * 6,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=0.3
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(hidden_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.cnn(x)
+
+        batch_size = x.size(0)
+        x = x.permute(0, 2, 1, 3)
+        x = x.reshape(batch_size, 6, -1)
+
+        lstm_out, _ = self.lstm(x)
+
+        x = lstm_out[:, -1, :]
+
+        return self.classifier(x)
