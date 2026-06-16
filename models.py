@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models as tv_models
+from torchvision.models.optical_flow.raft import ResidualBlock
 
 
 class SimpleCNN(nn.Module):
@@ -251,3 +252,67 @@ class ViTFER(nn.Module):
 
         cls_output = x[:, 0]
         return self.classifier(cls_output)
+
+    class ResidualBlock(nn.Module):
+
+        def __init__(self, in_channels, out_channels):
+            super().__init__()
+
+            self.conv_block = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(),
+                nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm2d(out_channels),
+            )
+
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1),
+                nn.BatchNorm2d(out_channels)
+            ) if in_channels != out_channels else nn.Identity()
+
+            self.relu = nn.ReLU()
+
+        def forward(self, x):
+            return self.relu(self.conv_block(x) + self.shortcut(x))
+
+    class DeepCNNv2(nn.Module):
+        # 5 conv layers, gap, 2 fc layers, dropout, residual connections
+
+        def __init__(self, num_classes=7):
+            super().__init__()
+
+            self.features = nn.Sequential(
+                ResidualBlock(1, 32),
+                nn.MaxPool2d(2, 2),  # (32, 24, 24)
+
+                ResidualBlock(32, 64),
+                nn.MaxPool2d(2, 2),  # (64, 12, 12)
+
+                ResidualBlock(64, 128),
+                nn.MaxPool2d(2, 2),  # (128, 6, 6)
+
+                ResidualBlock(128, 256),
+                nn.MaxPool2d(2, 2),  # (256, 3, 3)
+
+                ResidualBlock(256, 512),
+            )
+
+            self.gap = nn.AdaptiveAvgPool2d(1)
+
+            self.classifier = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(512, 256),
+                nn.ReLU(),
+                nn.Dropout(0.5),
+                nn.Linear(256, 128),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(128, num_classes)
+            )
+
+        def forward(self, x):
+            x = self.features(x)
+            x = self.gap(x)
+            x = self.classifier(x)
+            return x
